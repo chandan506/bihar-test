@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bihar User Insights</title>
+<meta name="description" content="District-level user insights for Bihar, updated fortnightly.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+
+/* Layout: sticky filter rail over a summary-first column — KPIs, then ranking + division, then trend, then the full district table. */
+:root{
+  --bg:#f4f6f2; --surface:#ffffff; --sunk:#eef1ec; --fg:#15201a; --muted:#5a665e; --faint:#8a958d; --line:#dfe4dc;
+  --accent:#1c6a44; --accent-ink:#ffffff; --accent-soft:#e2efe6; --bar:#2a8758; --bar-dim:#c3dbcc;
+  --pos:#1d7a3e; --neg:#b3372e; --warn:#93600a; --warn-soft:#fbf1dc;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f1411; --surface:#171e1a; --sunk:#131915; --fg:#e7ede8; --muted:#9ba89f; --faint:#6f7b73; --line:#29332d;
+  --accent:#5cc48d; --accent-ink:#0c1a12; --accent-soft:#1d3127; --bar:#4cb07e; --bar-dim:#2c4537;
+  --pos:#5cc48d; --neg:#ee7d72; --warn:#e0a94a; --warn-soft:#2c2414; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0f1411; --surface:#171e1a; --sunk:#131915; --fg:#e7ede8; --muted:#9ba89f; --faint:#6f7b73; --line:#29332d;
+  --accent:#5cc48d; --accent-ink:#0c1a12; --accent-soft:#1d3127; --bar:#4cb07e; --bar-dim:#2c4537;
+  --pos:#5cc48d; --neg:#ee7d72; --warn:#e0a94a; --warn-soft:#2c2414; color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.45;font-variant-numeric:tabular-nums}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+header.top{padding-block:22px 14px}
+.toprow{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:flex-end;justify-content:space-between}
+.eyebrow{font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(24px,3.4vw,32px);line-height:1.1;margin:4px 0 0;text-wrap:balance}
+.asof{color:var(--muted);margin-top:6px;font-size:13px}
+.hctl{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.fld{display:flex;flex-direction:column;gap:3px;min-width:0}
+.fld label{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+select,.inp{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-height:36px;max-width:100%}
+.btn{display:inline-flex;align-items:center;gap:7px;border-radius:8px;padding:8px 14px;min-height:36px;border:1px solid var(--line);background:var(--surface);font-weight:500}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+.btn.danger{color:var(--neg)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn svg{width:16px;height:16px}
+
+.rail{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.rail .wrap{padding-block:10px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0}
+.grp-l{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-right:2px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 11px;font-size:13px;line-height:1.3}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface);flex-wrap:wrap}
+.seg button{border:0;background:transparent;padding:6px 11px;font-size:13px;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.pick{position:relative}
+.pop{position:absolute;top:calc(100% + 6px);left:0;width:min(300px,calc(100vw - 32px));background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:0 10px 30px rgba(0,0,0,.14);padding:10px;z-index:20}
+.pop .inp{width:100%}
+.pop .acts{display:flex;justify-content:space-between;margin:8px 0 4px}
+.pop .acts button{border:0;background:none;color:var(--accent);font-size:13px;font-weight:500;padding:2px}
+.plist{max-height:280px;overflow:auto;display:flex;flex-direction:column}
+.plist label{display:flex;gap:8px;align-items:center;padding:5px 4px;border-radius:6px;font-size:13.5px}
+.plist label:hover{background:var(--sunk)}
+.plist .dv{margin-left:auto;color:var(--faint);font-size:12px}
+.clear{font-size:13px;color:var(--muted);text-decoration:underline;border:0;background:none;padding:4px}
+
+main{padding-block:18px 48px;display:flex;flex-direction:column;gap:18px}
+.banner{border:1px solid var(--line);background:var(--warn-soft);color:var(--fg);border-radius:var(--r);padding:10px 14px;font-size:13.5px}
+.banner b{color:var(--warn)}
+
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 14px 12px;text-align:left;display:flex;flex-direction:column;gap:4px;min-width:0}
+.kpi[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.kpi .kl{font-size:12.5px;color:var(--muted);font-weight:500}
+.kpi .kv{font-family:var(--f-display);font-weight:700;font-size:clamp(22px,2.4vw,28px);line-height:1.15;letter-spacing:-.01em}
+.kpi .kd{font-size:12.5px;display:flex;gap:6px;flex-wrap:wrap;align-items:baseline}
+.up{color:var(--pos);font-weight:600}.dn{color:var(--neg);font-weight:600}.flat{color:var(--muted)}
+.kpi .ks{font-size:12px;color:var(--faint)}
+
+.grid2{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
+.ch{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+h2{font-family:var(--f-display);font-weight:500;font-size:17px;margin:0;text-wrap:balance}
+.sub{color:var(--muted);font-size:12.5px}
+.viz{width:100%;position:relative}
+.viz svg{display:block;width:100%;overflow:visible}
+.viz text{fill:var(--muted);font-size:12px;font-family:var(--f-body)}
+.viz .vl{fill:var(--fg);font-weight:500}
+.viz .lbl{fill:var(--fg)}
+.more{margin-top:8px}
+.note{color:var(--muted);font-size:13px;padding:22px 4px;text-align:center}
+
+.tbl-wrap{overflow-x:auto;margin:0 -16px;padding:0 16px}
+table{border-collapse:collapse;width:100%;min-width:820px;font-size:13.5px}
+th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}
+th{font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:600;position:relative}
+th button{border:0;background:none;padding:0;font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit}
+th[aria-sort] button{color:var(--fg)}
+tbody tr:hover{background:var(--sunk)}
+tfoot td{font-weight:600;border-bottom:0;border-top:2px solid var(--line)}
+td .pill{display:inline-block;font-size:11.5px;padding:1px 7px;border-radius:999px;background:var(--sunk);color:var(--muted)}
+.gpsbar{display:inline-block;width:44px;height:6px;background:var(--sunk);border-radius:3px;vertical-align:middle;margin-left:8px;overflow:hidden}
+.gpsbar i{display:block;height:100%;background:var(--bar);border-radius:3px}
+
+.snaps{display:flex;flex-direction:column}
+.snap{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.snap:last-child{border-bottom:0}
+.snap .sd{font-weight:600;min-width:110px}
+.snap .sm{color:var(--muted);font-size:12.5px;flex:1;min-width:180px}
+
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);padding:36px 20px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px}
+.empty h2{font-size:20px}
+.empty p{color:var(--muted);max-width:56ch;margin:0}
+code{font-size:12.5px;background:var(--sunk);padding:1px 5px;border-radius:4px}
+
+#tip{position:fixed;z-index:50;pointer-events:none;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12.5px;box-shadow:0 8px 24px rgba(0,0,0,.16);max-width:240px}
+#tip b{display:block;font-size:13px;margin-bottom:2px}
+#tip .tr{display:flex;justify-content:space-between;gap:14px;color:var(--muted)}
+#tip .tr span:last-child{color:var(--fg);font-weight:500}
+
+.modal{position:fixed;inset:0;z-index:60;background:rgba(10,16,12,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+.dlg{background:var(--surface);border:1px solid var(--line);border-radius:14px;width:min(560px,100%);max-height:calc(100% - 32px);overflow:auto;padding:20px;display:flex;flex-direction:column;gap:14px}
+.dlg h2{font-size:20px}
+.drop{border:1.5px dashed var(--line);border-radius:var(--r);padding:22px;text-align:center;color:var(--muted);background:var(--sunk)}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop b{color:var(--fg)}
+.prev{font-size:13px;display:flex;flex-direction:column;gap:6px}
+.prev .ok{color:var(--pos);font-weight:600}
+.prev .err{color:var(--neg);font-weight:600}
+.prev ul{margin:0;padding-left:18px;color:var(--muted)}
+.dact{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:8px;z-index:70;font-size:13.5px}
+
+@media (max-width:980px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.grid2{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:560px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.rail{position:static}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+.foot{color:var(--faint);font-size:12.5px;padding-top:6px}
+.banner ul{margin:6px 0 0;padding-left:18px}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <div class="toprow">
+    <div>
+      <div class="eyebrow">Digital Green · Updated fortnightly</div>
+      <h1>Bihar User Insights</h1>
+      <div class="asof" id="asof">Loading data…</div>
+    </div>
+    <div class="hctl">
+      <div class="fld"><label for="selDate">Data as of</label><select id="selDate" disabled><option>—</option></select></div>
+      <div class="fld"><label for="selCmp">Compare with</label><select id="selCmp" disabled><option>—</option></select></div>
+    </div>
+  </div>
+</div></header>
+
+<nav class="rail" aria-label="Filters"><div class="wrap">
+  <div class="grp" id="divChips"><span class="grp-l">Division</span></div>
+  <div class="grp">
+    <span class="grp-l">District</span>
+    <div class="pick">
+      <button class="chip" id="btnDist" type="button" aria-expanded="false">All districts ▾</button>
+      <div class="pop" id="popDist" hidden>
+        <input class="inp" id="distSearch" type="search" placeholder="Search districts" autocomplete="off">
+        <div class="acts"><button type="button" id="distAll">Select shown</button><button type="button" id="distNone">Clear</button></div>
+        <div class="plist" id="distList"></div>
+      </div>
+    </div>
+  </div>
+  <div class="grp"><span class="grp-l">Metric</span><div class="seg" id="metricSeg"></div></div>
+  <button class="clear" id="btnClear" type="button" hidden>Clear filters</button>
+</div></nav>
+
+<main class="wrap" id="main">
+  <div id="banner" class="banner" hidden></div>
+  <section id="emptyState" class="empty" hidden></section>
+  <div id="content" hidden>
+    <section class="kpis" id="kpis" aria-label="Summary"></section>
+    <div class="grid2" style="margin-top:18px">
+      <section class="card">
+        <div class="ch"><h2 id="rankTitle">Districts</h2><span class="sub" id="rankSub"></span></div>
+        <div class="viz" id="rankViz"></div>
+        <button class="btn ghost more" id="btnMore" type="button" hidden></button>
+      </section>
+      <section class="card">
+        <div class="ch"><h2 id="divTitle">By division</h2><span class="sub">Click a division to filter</span></div>
+        <div class="viz" id="divViz"></div>
+      </section>
+    </div>
+    <section class="card" style="margin-top:18px">
+      <div class="ch"><h2 id="trendTitle">Trend</h2><span class="sub" id="trendSub"></span></div>
+      <div class="viz" id="trendViz"></div>
+    </section>
+    <section class="card" style="margin-top:18px">
+      <div class="ch"><h2>District detail</h2><span class="sub" id="tblSub"></span></div>
+      <div class="tbl-wrap"><table id="tbl"><thead></thead><tbody></tbody><tfoot></tfoot></table></div>
+    </section>
+    <section class="card" style="margin-top:18px">
+      <div class="ch"><h2>Data updates</h2><span class="sub">Each update is a cumulative snapshot of all users up to that date.</span></div>
+      <div class="snaps" id="snaps"></div>
+    </section>
+  </div>
+  <footer class="foot" id="foot"></footer>
+</main>
+
+<div id="tip" hidden></div>
+
+<script>
+(() => {
+"use strict";
+/* ---------- reference data ---------- */
+const DIVISIONS = {
+  "Patna": ["Patna","Nalanda","Bhojpur","Buxar","Rohtas","Kaimur"],
+  "Tirhut": ["Muzaffarpur","East Champaran","West Champaran","Sitamarhi","Sheohar","Vaishali"],
+  "Saran": ["Saran","Siwan","Gopalganj"],
+  "Darbhanga": ["Darbhanga","Madhubani","Samastipur"],
+  "Kosi": ["Saharsa","Supaul","Madhepura"],
+  "Purnia": ["Purnia","Katihar","Araria","Kishanganj"],
+  "Bhagalpur": ["Bhagalpur","Banka"],
+  "Munger": ["Munger","Jamui","Khagaria","Lakhisarai","Begusarai","Sheikhpura"],
+  "Magadh": ["Gaya","Nawada","Aurangabad","Jehanabad","Arwal"]
+};
+const DIV_OF = {}; Object.entries(DIVISIONS).forEach(([d, ls]) => ls.forEach(n => DIV_OF[n] = d));
+const ALL_DIST = Object.keys(DIV_OF);
+const ALIAS = { "purnea":"Purnia","purbi champaran":"East Champaran","purba champaran":"East Champaran","motihari":"East Champaran",
+  "pashchim champaran":"West Champaran","paschim champaran":"West Champaran","bettiah":"West Champaran","kaimur bhabua":"Kaimur","bhabua":"Kaimur",
+  "monghyr":"Munger","jahanabad":"Jehanabad","sheikpura":"Sheikhpura","arrah":"Bhojpur","sasaram":"Rohtas","chhapra":"Saran","gaya ji":"Gaya" };
+const divOf = n => n === "Unknown" ? "Unknown" : (DIV_OF[n] || "Unmapped");
+
+const METRICS = [
+  { k:"a",  label:"Active Users",     short:"Active" },
+  { k:"ac", label:"Activated Users",  short:"Activated" },
+  { k:"nd", label:"New Devices",      short:"New devices" },
+  { k:"q",  label:"Queried Users",    short:"Queried" },
+  { k:"gps",label:"% Active with GPS",short:"GPS %", pct:true }
+];
+const M = Object.fromEntries(METRICS.map(m => [m.k, m]));
+
+/* ---------- state ---------- */
+const S = { snaps:new Map(), dates:[], date:null, cmp:null, metric:"a", divs:new Set(), dists:new Set(),
+  sort:{k:"a",dir:-1}, showAll:false, loaded:false, cmpTouched:false, generated:"" };
+try { const p = JSON.parse(localStorage.getItem("bih-filters")||"{}");
+  if (p.metric && M[p.metric]) S.metric = p.metric;
+  if (Array.isArray(p.divs)) S.divs = new Set(p.divs);
+  if (Array.isArray(p.dists)) S.dists = new Set(p.dists);
+} catch(e) {}
+function saveFilters(){ try{ localStorage.setItem("bih-filters", JSON.stringify({metric:S.metric,divs:[...S.divs],dists:[...S.dists]})); }catch(e){} }
+
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const nfIN = new Intl.NumberFormat("en-IN");
+const fmtN = v => nfIN.format(Math.round(v));
+const fmtP = v => (isFinite(v) ? v.toFixed(1) : "0.0") + "%";
+const fmtC = v => { const a = Math.abs(v);
+  if (a >= 1e7) return (v/1e7).toFixed(a>=1e8?0:1).replace(/\.0$/,"")+" Cr";
+  if (a >= 1e5) return (v/1e5).toFixed(a>=1e6?0:1).replace(/\.0$/,"")+" L";
+  if (a >= 1e3) return (v/1e3).toFixed(a>=1e4?0:1).replace(/\.0$/,"")+"K";
+  return String(Math.round(v)); };
+const fmtM = (k, v) => M[k].pct ? fmtP(v) : fmtN(v);
+const fmtAxis = (k, v) => M[k].pct ? Math.round(v)+"%" : fmtC(v);
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fmtD = (iso, yr) => { const [y,m,d] = iso.split("-").map(Number); return d+" "+MONTHS[m-1]+(yr?" "+y:""); };
+const todayISO = () => { const t = new Date(); return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0"); };
+
+function agg(rows){
+  const t = {a:0,ac:0,nd:0,q:0,g:0,n:rows.length};
+  rows.forEach(r => { t.a+=r.a; t.ac+=r.ac; t.nd+=r.nd; t.q+=r.q; t.g+=r.g; });
+  t.gps = t.a ? t.g/t.a*100 : 0;
+  return t;
+}
+const val = (r, k) => k === "gps" ? (r.a ? r.g/r.a*100 : 0) : r[k];
+const rowsFor = date => (S.snaps.get(date)?.rows || []);
+const passDiv = r => !S.divs.size || S.divs.has(divOf(r.n));
+const passDist = r => !S.dists.size || S.dists.has(r.n);
+const filtered = date => rowsFor(date).filter(r => passDiv(r) && passDist(r));
+
+function delta(k, cur, prev){
+  if (prev == null) return "";
+  const d = cur - prev;
+  const cls = Math.abs(d) < (M[k].pct ? 0.05 : 0.5) ? "flat" : d > 0 ? "up" : "dn";
+  const sign = d > 0 ? "+" : d < 0 ? "−" : "±";
+  const txt = M[k].pct ? sign + Math.abs(d).toFixed(1) + " pts" : sign + fmtN(Math.abs(d));
+  return `<span class="${cls}">${txt}</span>`;
+}
+
+/* ---------- tooltip ---------- */
+const tip = $("tip");
+function showTip(html, x, y){
+  tip.innerHTML = html; tip.hidden = false;
+  const r = tip.getBoundingClientRect();
+  let l = x + 14, t = y + 14;
+  if (l + r.width > innerWidth - 8) l = x - r.width - 14;
+  if (t + r.height > innerHeight - 8) t = y - r.height - 14;
+  tip.style.left = Math.max(8,l) + "px"; tip.style.top = Math.max(8,t) + "px";
+}
+const hideTip = () => { tip.hidden = true; };
+const trow = (a,b) => `<div class="tr"><span>${a}</span><span>${b}</span></div>`;
+
+/* ---------- CSV parsing ---------- */
+function parseCSV(text){
+  const out = []; let row = [], f = "", q = false;
+  text = text.replace(/^﻿/, "");
+  for (let i = 0; i < text.length; i++){
+    const c = text[i];
+    if (q){ if (c === '"'){ if (text[i+1] === '"'){ f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true;
+    else if (c === ",") { row.push(f); f = ""; }
+    else if (c === "\n" || c === "\r") { if (c === "\r" && text[i+1] === "\n") i++; row.push(f); out.push(row); row = []; f = ""; }
+    else f += c;
+  }
+  if (f !== "" || row.length) { row.push(f); out.push(row); }
+  return out.filter(r => r.some(x => x.trim() !== ""));
+}
+function canon(raw){
+  const s = (raw ?? "").toString().trim(), low = s.toLowerCase();
+  if (!s || ["null","none","undefined","unknown","na","n/a","-","nan"].includes(low)) return "Unknown";
+  const k = low.replace(/\bdistrict\b/g," ").replace(/[^a-z ]/g," ").replace(/\s+/g," ").trim();
+  if (ALIAS[k]) return ALIAS[k];
+  const hit = ALL_DIST.find(d => d.toLowerCase() === k);
+  return hit || s.replace(/\s+/g," ").replace(/\b\w/g, c => c.toUpperCase());
+}
+const num = v => { const n = parseFloat(String(v ?? "").replace(/[, %]/g,"")); return isFinite(n) ? n : 0; };
+function buildSnapshot(text){
+  const rows = parseCSV(text);
+  if (rows.length < 2) return { error:"The file has no data rows." };
+  const hdr = rows[0].map(h => h.trim().toLowerCase());
+  const find = fn => hdr.findIndex(fn);
+  const ix = {
+    n: find(h => h.includes("geography") || h.includes("district")),
+    a: find(h => h.includes("active") && !h.includes("activated") && !h.includes("gps") && !h.includes("%")),
+    ac: find(h => h.includes("activated")),
+    nd: find(h => h.includes("new device")),
+    q: find(h => h.includes("queried")),
+    gps: find(h => h.includes("gps"))
+  };
+  const missing = Object.entries({n:"geography_level3",a:"Active Users",ac:"Activated Users",nd:"New Devices",q:"Queried Users",gps:"% of Active Users with GPS Location"})
+    .filter(([k]) => ix[k] < 0).map(([,v]) => v);
+  if (ix.n < 0 || ix.a < 0) return { error:"Couldn't find the district or Active Users column. Check the header row." };
+  const map = new Map(), notes = [];
+  rows.slice(1).forEach(r => {
+    const raw = r[ix.n], n = canon(raw);
+    const a = num(r[ix.a]);
+    const rec = { n, a, ac: ix.ac>=0?num(r[ix.ac]):0, nd: ix.nd>=0?num(r[ix.nd]):0, q: ix.q>=0?num(r[ix.q]):0,
+      g: ix.gps>=0 ? a*num(r[ix.gps])/100 : 0 };
+    if (map.has(n)){ const p = map.get(n); ["a","ac","nd","q","g"].forEach(k => p[k]+=rec[k]); notes.push(`“${raw.trim()}” merged into ${n}`); }
+    else { map.set(n, rec); if (raw.trim() !== n && n !== "Unknown") notes.push(`“${raw.trim()}” read as ${n}`); }
+  });
+  const out = [...map.values()].map(r => ({...r, g: Math.round(r.g*100)/100}));
+  const unmapped = out.filter(r => divOf(r.n) === "Unmapped").map(r => r.n);
+  return { rows: out, notes, missing, unmapped };
+}
+function dateFromName(name){
+  let m = name.match(/(20\d{2})[-_.](\d{1,2})[-_.](\d{1,2})/);
+  if (m) return `${m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}`;
+  m = name.match(/(\d{1,2})[-_.](\d{1,2})[-_.](20\d{2})/);
+  if (m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+  return null;
+}
+
+/* ---------- SVG helpers ---------- */
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs={}, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+function barPath(x, y, w, h, r){
+  if (w <= 0) return "";
+  r = Math.min(r, w, h/2);
+  return `M${x},${y}h${w-r}a${r},${r} 0 0 1 ${r},${r}v${h-2*r}a${r},${r} 0 0 1 -${r},${r}h-${w-r}z`;
+}
+function niceTicks(max, n=4){
+  if (!(max > 0)) return [0,1];
+  const raw = max/n, p = 10**Math.floor(Math.log10(raw)), m = raw/p;
+  const step = (m<=1?1:m<=2?2:m<=2.5?2.5:m<=5?5:10)*p, top = Math.ceil(max/step)*step, t = [];
+  for (let v = 0; v <= top + step*1e-6; v += step) t.push(v);
+  return t;
+}
+
+/* horizontal bars: items [{key,label,value,dim,tip}] */
+function hbars(host, items, k, opts={}){
+  host.innerHTML = "";
+  if (!items.length){ host.innerHTML = `<div class="note">No districts match these filters.</div>`; return; }
+  const W = Math.max(280, host.clientWidth || 600), rowH = 26, barH = 14;
+  const labelW = Math.min(132, Math.round(W*0.3)), valW = 74;
+  const plotW = W - labelW - valW;
+  const max = Math.max(...items.map(i => i.value), M[k].pct ? 1 : 1);
+  const H = items.length * rowH + 4;
+  const svg = el("svg", { viewBox:`0 0 ${W} ${H}`, height:H, role:"img", "aria-label": opts.aria || "Bar chart" }, host);
+  items.forEach((it, i) => {
+    const y = i*rowH + 2, g = el("g", {}, svg);
+    const t = el("text", { x: labelW - 10, y: y + rowH/2 + 4, "text-anchor":"end", class:"lbl" }, g);
+    t.textContent = it.label.length > 18 ? it.label.slice(0,17)+"…" : it.label;
+    el("rect", { x: labelW, y: y + (rowH-barH)/2, width: plotW, height: barH, fill:"var(--sunk)", rx:2 }, g);
+    const bw = Math.max(it.value > 0 ? 2 : 0, it.value/max*plotW);
+    el("path", { d: barPath(labelW, y + (rowH-barH)/2, bw, barH, 4), fill: it.dim ? "var(--bar-dim)" : "var(--bar)" }, g);
+    const v = el("text", { x: labelW + bw + 6, y: y + rowH/2 + 4, class:"vl" }, g);
+    v.textContent = M[k].pct ? fmtP(it.value) : fmtC(it.value);
+    const hit = el("rect", { x:0, y, width:W, height:rowH, fill:"transparent", style: opts.onClick ? "cursor:pointer" : "" }, g);
+    hit.addEventListener("pointermove", e => showTip(it.tip, e.clientX, e.clientY));
+    hit.addEventListener("pointerleave", hideTip);
+    if (opts.onClick) hit.addEventListener("click", () => { hideTip(); opts.onClick(it.key); });
+  });
+}
+
+/* ---------- renderers ---------- */
+function renderHeader(){
+  const sd = $("selDate"), sc = $("selCmp");
+  const ds = [...S.dates].reverse();
+  sd.disabled = !ds.length; sc.disabled = ds.length < 2;
+  sd.innerHTML = ds.length ? ds.map(d => `<option value="${d}"${d===S.date?" selected":""}>${fmtD(d,true)}</option>`).join("") : "<option>—</option>";
+  const older = ds.filter(d => d < S.date);
+  sc.innerHTML = `<option value="">No comparison</option>` + older.map(d => `<option value="${d}"${d===S.cmp?" selected":""}>${fmtD(d,true)}</option>`).join("");
+  if (!S.loaded) { $("asof").textContent = "Loading data…"; return; }
+  if (!S.date) { $("asof").textContent = "No data uploaded yet"; return; }
+  const s = S.snaps.get(S.date);
+  $("asof").textContent = `Cumulative totals as of ${fmtD(S.date,true)} · ${S.dates.length} update${S.dates.length>1?"s":""} so far`;
+}
+
+function presentDivs(){
+  const set = new Set(); S.dates.forEach(d => rowsFor(d).forEach(r => set.add(divOf(r.n))));
+  const order = [...Object.keys(DIVISIONS), "Unmapped", "Unknown"];
+  return order.filter(d => set.has(d) || DIVISIONS[d]);
+}
+function renderFilters(){
+  const dc = $("divChips");
+  dc.innerHTML = `<span class="grp-l">Division</span>` +
+    `<button class="chip" type="button" data-div="" aria-pressed="${!S.divs.size}">All</button>` +
+    presentDivs().map(d => `<button class="chip" type="button" data-div="${esc(d)}" aria-pressed="${S.divs.has(d)}">${esc(d)}</button>`).join("");
+  $("metricSeg").innerHTML = METRICS.map(m => `<button type="button" data-m="${m.k}" aria-pressed="${S.metric===m.k}">${m.short}</button>`).join("");
+  const n = S.dists.size;
+  $("btnDist").textContent = (n ? (n === 1 ? [...S.dists][0] : `${n} districts`) : "All districts") + " ▾";
+  $("btnDist").setAttribute("aria-pressed", n ? "true" : "false");
+  $("btnClear").hidden = !(S.divs.size || S.dists.size);
+  renderDistList();
+}
+function districtUniverse(){
+  const set = new Set(); S.dates.forEach(d => rowsFor(d).forEach(r => set.add(r.n)));
+  return [...set].filter(n => !S.divs.size || S.divs.has(divOf(n))).sort((a,b) => a==="Unknown"?1:b==="Unknown"?-1:a.localeCompare(b));
+}
+function renderDistList(){
+  const q = $("distSearch").value.trim().toLowerCase();
+  const list = districtUniverse().filter(n => !q || n.toLowerCase().includes(q) || divOf(n).toLowerCase().includes(q));
+  $("distList").innerHTML = list.length ? list.map(n => `<label><input type="checkbox" value="${esc(n)}"${S.dists.has(n)?" checked":""}> ${esc(n)}<span class="dv">${esc(divOf(n))}</span></label>`).join("")
+    : `<div class="note" style="padding:12px">No districts found</div>`;
+}
+
+function renderKPIs(){
+  const cur = agg(filtered(S.date)), prev = S.cmp ? agg(filtered(S.cmp)) : null;
+  const cmpTxt = S.cmp ? `since ${fmtD(S.cmp)}` : "";
+  const sub = { a: `${cur.n} district${cur.n===1?"":"s"}`, ac: cur.a ? `${(cur.ac/cur.a*100).toFixed(1)}% of active` : "",
+    nd: cur.a ? `${(cur.nd/cur.a*100).toFixed(1)}% of active` : "", q: cur.a ? `${(cur.q/cur.a*100).toFixed(1)}% of active ask questions` : "",
+    gps: `${fmtN(cur.g)} users with location` };
+  $("kpis").innerHTML = METRICS.map(m => `
+    <button class="kpi" type="button" data-m="${m.k}" aria-pressed="${S.metric===m.k}">
+      <span class="kl">${m.label}</span>
+      <span class="kv">${fmtM(m.k, cur[m.k])}</span>
+      <span class="kd">${prev ? delta(m.k, cur[m.k], prev[m.k]) + `<span class="flat">${cmpTxt}</span>` : `<span class="flat">&nbsp;</span>`}</span>
+      <span class="ks">${sub[m.k]}</span>
+    </button>`).join("");
+}
+
+function renderRank(){
+  const k = S.metric, rows = filtered(S.date), prevRows = S.cmp ? rowsFor(S.cmp) : [];
+  const prevMap = new Map(prevRows.map(r => [r.n, r]));
+  const sorted = rows.slice().sort((a,b) => val(b,k) - val(a,k));
+  const LIM = 15, list = S.showAll ? sorted : sorted.slice(0, LIM);
+  $("rankTitle").textContent = `${M[k].label} by district`;
+  $("rankSub").textContent = sorted.length > LIM && !S.showAll ? `Top ${LIM} of ${sorted.length}` : `${sorted.length} district${sorted.length===1?"":"s"}`;
+  hbars($("rankViz"), list.map(r => {
+    const p = prevMap.get(r.n);
+    return { key:r.n, label:r.n, value: val(r,k),
+      tip: `<b>${esc(r.n)}</b>` + trow("Division", esc(divOf(r.n))) + trow(M[k].short, fmtM(k, val(r,k))) +
+        (p ? trow(`Change since ${fmtD(S.cmp)}`, delta(k, val(r,k), val(p,k))) : "") +
+        (k !== "a" ? trow("Active users", fmtN(r.a)) : "") };
+  }), k, { aria:`${M[k].label} by district` });
+  const b = $("btnMore");
+  b.hidden = sorted.length <= LIM;
+  b.textContent = S.showAll ? "Show top 15" : `Show all ${sorted.length} districts`;
+}
+
+function renderDiv(){
+  const k = S.metric;
+  const rows = rowsFor(S.date).filter(passDist);
+  const groups = new Map();
+  rows.forEach(r => { const d = divOf(r.n); if (!groups.has(d)) groups.set(d, []); groups.get(d).push(r); });
+  const items = [...groups.entries()].map(([d, rs]) => { const t = agg(rs);
+    return { key:d, label:d, value:t[k], dim: S.divs.size && !S.divs.has(d),
+      tip:`<b>${esc(d)} division</b>` + trow(M[k].short, fmtM(k, t[k])) + trow("Districts", rs.length) + (k!=="a"?trow("Active users", fmtN(t.a)):"") };
+  }).sort((a,b) => b.value - a.value);
+  $("divTitle").textContent = `${M[k].short} by division`;
+  hbars($("divViz"), items, k, { aria:`${M[k].label} by division`, onClick: d => { S.divs.has(d) ? S.divs.delete(d) : S.divs.add(d); pruneDists(); saveFilters(); renderAll(); } });
+}
+
+function renderTrend(){
+  const k = S.metric, host = $("trendViz");
+  host.innerHTML = "";
+  const pts = S.dates.map(d => ({ d, v: agg(filtered(d))[k] }));
+  $("trendTitle").textContent = `${M[k].label} over time`;
+  $("trendSub").textContent = S.divs.size || S.dists.size ? "For the selected filters" : "All of Bihar";
+  if (pts.length < 2){
+    host.innerHTML = `<div class="note">The trend line starts once a second update is added. ${pts.length ? `Current value: <b>${fmtM(k, pts[0].v)}</b> on ${fmtD(pts[0].d)}.` : ""}</div>`;
+    return;
+  }
+  const W = Math.max(300, host.clientWidth || 700), H = 230, ml = 52, mr = 18, mt = 14, mb = 28;
+  const t0 = Date.parse(pts[0].d), t1 = Date.parse(pts[pts.length-1].d);
+  const xs = d => ml + (t1 === t0 ? 0 : (Date.parse(d)-t0)/(t1-t0)) * (W-ml-mr);
+  const ticks = niceTicks(Math.max(...pts.map(p => p.v)) * 1.05);
+  const top = ticks[ticks.length-1];
+  const ys = v => mt + (1 - v/top) * (H-mt-mb);
+  const svg = el("svg", { viewBox:`0 0 ${W} ${H}`, height:H, role:"img", "aria-label":`${M[k].label} over time` }, host);
+  ticks.forEach(t => {
+    el("line", { x1:ml, x2:W-mr, y1:ys(t), y2:ys(t), stroke:"var(--line)", "stroke-width":1 }, svg);
+    const tx = el("text", { x:ml-8, y:ys(t)+4, "text-anchor":"end" }, svg); tx.textContent = fmtAxis(k, t);
+  });
+  const nLab = Math.min(pts.length, Math.max(2, Math.floor((W-ml-mr)/80)));
+  const step = (pts.length-1)/(nLab-1), seen = new Set();
+  for (let i = 0; i < nLab; i++){
+    const p = pts[Math.round(i*step)]; if (seen.has(p.d)) continue; seen.add(p.d);
+    const tx = el("text", { x:xs(p.d), y:H-8, "text-anchor": i===0?"start":i===nLab-1?"end":"middle" }, svg); tx.textContent = fmtD(p.d);
+  }
+  const line = pts.map((p,i) => `${i?"L":"M"}${xs(p.d).toFixed(1)},${ys(p.v).toFixed(1)}`).join("");
+  el("path", { d: line + `L${xs(pts[pts.length-1].d)},${ys(0)}L${xs(pts[0].d)},${ys(0)}Z`, fill:"var(--bar)", "fill-opacity":0.12 }, svg);
+  el("path", { d: line, fill:"none", stroke:"var(--bar)", "stroke-width":2, "stroke-linejoin":"round", "stroke-linecap":"round" }, svg);
+  const last = pts[pts.length-1];
+  el("circle", { cx:xs(last.d), cy:ys(last.v), r:4.5, fill:"var(--bar)", stroke:"var(--surface)", "stroke-width":2 }, svg);
+  const cross = el("line", { y1:mt, y2:H-mb, stroke:"var(--faint)", "stroke-width":1, "stroke-dasharray":"3 3", visibility:"hidden" }, svg);
+  const dot = el("circle", { r:5, fill:"var(--bar)", stroke:"var(--surface)", "stroke-width":2, visibility:"hidden" }, svg);
+  const hit = el("rect", { x:ml, y:mt, width:W-ml-mr, height:H-mt-mb, fill:"transparent" }, svg);
+  hit.addEventListener("pointermove", e => {
+    const r = svg.getBoundingClientRect(), x = (e.clientX - r.left) * (W / r.width);
+    let bi = 0, bd = Infinity; pts.forEach((p,i) => { const dd = Math.abs(xs(p.d)-x); if (dd < bd){ bd = dd; bi = i; } });
+    const p = pts[bi], px = xs(p.d);
+    cross.setAttribute("x1", px); cross.setAttribute("x2", px); cross.setAttribute("visibility","visible");
+    dot.setAttribute("cx", px); dot.setAttribute("cy", ys(p.v)); dot.setAttribute("visibility","visible");
+    showTip(`<b>${fmtD(p.d,true)}</b>` + trow(M[k].short, fmtM(k,p.v)) + (bi ? trow(`vs ${fmtD(pts[bi-1].d)}`, delta(k, p.v, pts[bi-1].v)) : ""), e.clientX, e.clientY);
+  });
+  hit.addEventListener("pointerleave", () => { hideTip(); cross.setAttribute("visibility","hidden"); dot.setAttribute("visibility","hidden"); });
+}
+
+const COLS = [
+  { k:"n", label:"District" }, { k:"div", label:"Division" },
+  { k:"a", label:"Active" }, { k:"d", label:"Δ" }, { k:"ac", label:"Activated" }, { k:"nd", label:"New devices" },
+  { k:"q", label:"Queried" }, { k:"qr", label:"Query rate" }, { k:"gps", label:"GPS %" }
+];
+function renderTable(){
+  const k = S.metric, rows = filtered(S.date);
+  const prevMap = new Map((S.cmp ? rowsFor(S.cmp) : []).map(r => [r.n, r]));
+  const data = rows.map(r => { const p = prevMap.get(r.n);
+    return { ...r, div: divOf(r.n), gps: val(r,"gps"), qr: r.a ? r.q/r.a*100 : 0, d: p ? val(r,k) - val(p,k) : null }; });
+  const { k:sk, dir } = S.sort;
+  data.sort((a,b) => { const x = a[sk], y = b[sk];
+    if (typeof x === "string") return dir * x.localeCompare(y);
+    return dir * ((x ?? -Infinity) - (y ?? -Infinity)); });
+  const dLabel = S.cmp ? `Δ ${M[k].short}` : "Δ";
+  $("tbl").tHead.innerHTML = "<tr>" + COLS.map(c => {
+    const s = sk === c.k ? ` aria-sort="${dir>0?"ascending":"descending"}"` : "";
+    const arrow = sk === c.k ? (dir>0?" ↑":" ↓") : "";
+    return `<th${s}><button type="button" data-sort="${c.k}">${c.k==="d"?dLabel:c.label}${arrow}</button></th>`; }).join("") + "</tr>";
+  const dcell = r => r.d == null ? `<span class="flat">—</span>` : delta(k, r.d + 0, 0);
+  $("tbl").tBodies[0].innerHTML = data.map(r => `<tr>
+    <td>${esc(r.n)}</td><td><span class="pill">${esc(r.div)}</span></td>
+    <td>${fmtN(r.a)}</td><td>${dcell(r)}</td><td>${fmtN(r.ac)}</td><td>${fmtN(r.nd)}</td><td>${fmtN(r.q)}</td>
+    <td>${fmtP(r.qr)}</td><td>${fmtP(r.gps)}<span class="gpsbar"><i style="width:${Math.min(100,r.gps).toFixed(0)}%"></i></span></td></tr>`).join("")
+    || `<tr><td colspan="9" style="text-align:center;color:var(--muted)">No districts match these filters.</td></tr>`;
+  const t = agg(rows), pt = S.cmp ? agg(filtered(S.cmp)) : null;
+  $("tbl").tFoot.innerHTML = rows.length ? `<tr><td>Total</td><td></td><td>${fmtN(t.a)}</td><td>${pt ? delta(k, t[k], pt[k]) : "—"}</td>
+    <td>${fmtN(t.ac)}</td><td>${fmtN(t.nd)}</td><td>${fmtN(t.q)}</td><td>${fmtP(t.a?t.q/t.a*100:0)}</td><td>${fmtP(t.gps)}</td></tr>` : "";
+  $("tblSub").textContent = S.cmp ? `Δ shows change in ${M[k].short} since ${fmtD(S.cmp)}. Click a column to sort.` : "Click a column to sort.";
+}
+
+let pendingDel = null;
+function renderSnaps(){
+  const ds = [...S.dates].reverse();
+  $("snaps").innerHTML = ds.map(d => { const s = S.snaps.get(d), t = agg(s.rows);
+    return `<div class="snap"><span class="sd">${fmtD(d,true)}</span>
+      <span class="sm">${s.rows.length} districts · ${fmtN(t.a)} active users${s.fileName?` · ${esc(s.fileName)}`:""}</span></div>`; }).join("");
+}
+
+function renderEmpty(){
+  $("emptyState").innerHTML = !S.loaded ? `<h2>Loading data…</h2>` : `
+    <h2>No data published yet</h2>
+    <p>Upload a CSV to the GitHub repository, named with its date, for example <code>2026-10-21.csv</code>. The dashboard updates a minute or two later.</p>`;
+}
+
+function renderAll(){
+  renderHeader();
+  renderFoot();
+  const has = !!S.date;
+  $("content").hidden = !has; $("emptyState").hidden = has;
+  renderFilters();
+  if (!has){ renderEmpty(); return; }
+  renderKPIs(); renderRank(); renderDiv(); renderTrend(); renderTable(); renderSnaps();
+}
+function pruneDists(){ if (S.divs.size) [...S.dists].forEach(n => { if (!S.divs.has(divOf(n))) S.dists.delete(n); }); }
+
+function setSnaps(map){
+  S.snaps = map;
+  S.dates = [...map.keys()].sort();
+  const latest = S.dates[S.dates.length-1] || null;
+  if (!S.date || !map.has(S.date) || S._wasLatest) S.date = latest;
+  S._wasLatest = S.date === latest;
+  if (!S.cmpTouched || (S.cmp && !map.has(S.cmp)) || (S.cmp && S.cmp >= S.date)) {
+    const older = S.dates.filter(d => d < S.date); S.cmp = older[older.length-1] || null;
+  }
+  S.loaded = true;
+  renderAll();
+}
+
+/* ---------- events ---------- */
+$("selDate").addEventListener("change", e => { S.date = e.target.value; S._wasLatest = S.date === S.dates[S.dates.length-1];
+  if (!S.cmp || S.cmp >= S.date || !S.cmpTouched){ const o = S.dates.filter(d => d < S.date); S.cmp = o[o.length-1] || null; }
+  renderAll(); });
+$("selCmp").addEventListener("change", e => { S.cmp = e.target.value || null; S.cmpTouched = true; renderAll(); });
+$("divChips").addEventListener("click", e => { const b = e.target.closest("[data-div]"); if (!b) return;
+  const d = b.dataset.div; if (!d) S.divs.clear(); else (S.divs.has(d) ? S.divs.delete(d) : S.divs.add(d));
+  pruneDists(); saveFilters(); renderAll(); });
+document.addEventListener("click", e => { const b = e.target.closest("[data-m]"); if (!b) return; S.metric = b.dataset.m; saveFilters(); renderAll(); });
+$("btnClear").addEventListener("click", () => { S.divs.clear(); S.dists.clear(); saveFilters(); renderAll(); });
+$("btnMore").addEventListener("click", () => { S.showAll = !S.showAll; renderRank(); });
+const pop = $("popDist");
+$("btnDist").addEventListener("click", e => { e.stopPropagation(); pop.hidden = !pop.hidden; $("btnDist").setAttribute("aria-expanded", String(!pop.hidden)); if (!pop.hidden){ renderDistList(); $("distSearch").focus(); } });
+document.addEventListener("click", e => { if (!pop.hidden && !e.target.closest(".pick")){ pop.hidden = true; $("btnDist").setAttribute("aria-expanded","false"); } });
+document.addEventListener("keydown", e => { if (e.key === "Escape"){ pop.hidden = true; } });
+$("distSearch").addEventListener("input", renderDistList);
+$("distList").addEventListener("change", e => { const v = e.target.value; e.target.checked ? S.dists.add(v) : S.dists.delete(v); saveFilters(); renderAll(); });
+$("distAll").addEventListener("click", () => { $("distList").querySelectorAll("input").forEach(i => S.dists.add(i.value)); saveFilters(); renderAll(); });
+$("distNone").addEventListener("click", () => { S.dists.clear(); saveFilters(); renderAll(); });
+$("tbl").addEventListener("click", e => { const b = e.target.closest("[data-sort]"); if (!b) return; const k = b.dataset.sort;
+  S.sort = S.sort.k === k ? { k, dir: -S.sort.dir } : { k, dir: (k==="n"||k==="div") ? 1 : -1 }; renderTable(); });
+let rT; new ResizeObserver(() => { clearTimeout(rT); rT = setTimeout(() => { if (S.date){ renderRank(); renderDiv(); renderTrend(); } }, 120); }).observe($("main"));
+
+function toast(msg){ const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
+/* ---------- loading from the data folder ---------- */
+function renderFoot(){
+  const last = S.dates[S.dates.length-1];
+  $("foot").textContent = "Source: Digital Green dashboard export, cumulative totals by district" +
+    (last ? ` · latest data ${fmtD(last,true)}` : "") +
+    (S.generated ? ` · site rebuilt ${new Date(S.generated).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}` : "");
+}
+function showProblems(list, lead){
+  const b = $("banner"); if (!list.length && !lead){ b.hidden = true; return; }
+  b.hidden = false;
+  b.innerHTML = `<b>${esc(lead || "Some data files were skipped.")}</b>` + (list.length ? `<ul>${list.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : "");
+}
+/* Find the CSVs in the data folder. On GitHub Pages this asks GitHub for the
+   folder listing, so no build step is needed; data/manifest.json is a fallback. */
+function listFromNames(names){
+  const files = [], skipped = [], seen = {};
+  names.filter(n => /\.csv$/i.test(n)).sort().forEach(name => {
+    const day = dateFromName(name.split("/").pop().replace(/ /g, "-"));
+    const ok = day && !isNaN(Date.parse(day));
+    if (!ok) skipped.push({ file:name, reason:"no date in the file name (rename it like 2026-10-21.csv)" });
+    else if (seen[day]) skipped.push({ file:name, reason:`another file (${seen[day]}) already has the date ${day}` });
+    else { seen[day] = name; files.push({ date:day, file:name }); }
+  });
+  return { files, skipped };
+}
+function repoFromLocation(){
+  const meta = document.querySelector('meta[name="github-repo"]');
+  if (meta && /^[\w.-]+\/[\w.-]+$/.test(meta.content)) return meta.content;
+  const host = location.hostname.toLowerCase();
+  if (!host.endsWith(".github.io")) return null;
+  const owner = host.slice(0, -".github.io".length);
+  const first = location.pathname.split("/").filter(Boolean)[0];
+  const repo = first && !/\.html?$/i.test(first) ? first : host;
+  return owner + "/" + repo;
+}
+async function ghList(repo, path){
+  const r = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, { headers:{ Accept:"application/vnd.github+json" }, cache:"no-cache" });
+  if (r.status === 404) return [];
+  if (!r.ok) throw new Error(r.status);
+  const items = await r.json();
+  return Array.isArray(items) ? items : [];
+}
+async function listDataFiles(){
+  const repo = repoFromLocation(), KEY = "bih-list2-" + (repo || "local");
+  if (repo){
+    try {
+      const top = await ghList(repo, "");
+      let items = top.filter(i => i.type === "file" && /\.csv$/i.test(i.name)).map(i => i.name);
+      if (top.some(i => i.type === "dir" && i.name === "data"))
+        items = items.concat((await ghList(repo, "data")).filter(i => i.type === "file" && /\.csv$/i.test(i.name)).map(i => "data/" + i.name));
+      const list = listFromNames(items);
+      try { localStorage.setItem(KEY, JSON.stringify(list)); } catch(e) {}
+      return list;
+    } catch(e) {}
+    try { const c = JSON.parse(localStorage.getItem(KEY) || "null"); if (c) return c; } catch(e) {}
+  }
+  try {
+    const r = await fetch("data/manifest.json", { cache:"no-cache" });
+    if (r.ok){ const man = await r.json(); S.generated = man.generated || "";
+      return { files:(man.files || []).map(f => ({ ...f, file:"data/" + f.file })), skipped:man.skipped || [] }; }
+  } catch(e) {}
+  return null;
+}
+async function load(){
+  const list = await listDataFiles();
+  if (!list){
+    showProblems([], "The list of data files couldn't be loaded. Wait a minute and refresh the page.");
+    setSnaps(new Map()); return;
+  }
+  const problems = (list.skipped || []).map(s => `${s.file}: ${s.reason}`);
+  const m = new Map();
+  await Promise.all(list.files.map(async f => {
+    try {
+      const r = await fetch(f.file.split("/").map(encodeURIComponent).join("/"), { cache:"no-cache" });
+      if (!r.ok) throw new Error(r.status);
+      const snap = buildSnapshot(await r.text());
+      if (snap.error){ problems.push(`${f.file}: ${snap.error}`); return; }
+      m.set(f.date, { date:f.date, rows:snap.rows, fileName:f.file.split("/").pop() });
+    } catch(e){ problems.push(`${f.file}: not published yet. If you just uploaded it, refresh in a minute or two.`); }
+  }));
+  showProblems(problems, list.note);
+  setSnaps(m);
+}
+renderAll();
+load();
+})();
+</script>
+</body>
+</html>
